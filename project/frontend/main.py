@@ -4,19 +4,22 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 import numpy as np
 from measurement_window import MeasurementWindow
-from api import OscilloscopeAPI
+from api_calls import OscilloscopeAPI
+from Measurement import Measurement
 
 class OscilloscopeGUI:
     def __init__(self, master):
         self.master = master
         master.title("Oscilloscope GUI")
-
-        self.api = OscilloscopeAPI()
+        OscilloscopeIP = "0.0.0.0"
+        self.api = OscilloscopeAPI(OscilloscopeIP)
 
         self.create_widgets()
 
+        self.setup_measurement()
+
     def create_widgets(self):
-        # Configure styles
+        #hmmm
         style = ttk.Style()
         style.configure('TFrame', background='gray')
         style.configure('TLabel', background='gray', foreground='#FFD700', font=('Helvetica', 10, 'bold'))  # Less bright yellow
@@ -52,26 +55,6 @@ class OscilloscopeGUI:
 
         self.request_waveform_button = ttk.Button(self.top_frame, text="Request Waveform", command=self.request_waveform)
         self.request_waveform_button.pack(side="left", padx=5)
-
-        # Create the figure for plotting
-        self.fig = Figure(figsize=(5, 3), dpi=100)
-        self.ax = self.fig.add_subplot(111)
-        self.ax.set_facecolor("white")
-        self.ax.spines['bottom'].set_color('#000000')
-        self.ax.spines['top'].set_color('#000000')
-        self.ax.spines['left'].set_color('#000000')
-        self.ax.spines['right'].set_color('#000000')
-        self.ax.tick_params(axis='x', colors='#000000')
-        self.ax.tick_params(axis='y', colors='#000000')
-
-        self.x = np.linspace(0, 2 * np.pi, 100)
-        self.y = np.sin(self.x)
-        self.line, = self.ax.plot(self.x, self.y, '#FFD700')
-
-        self.canvas = FigureCanvasTkAgg(self.fig, self.left_frame)
-        self.canvas_widget = self.canvas.get_tk_widget()
-        self.canvas_widget.pack(fill=tk.BOTH, expand=True)
-        self.canvas_widget.configure(background='gray')  # Set the canvas widget background to gray
 
         self.apply_channel_button = ttk.Button(self.right_frame, text="Apply Channel", command=self.update_waveform)
         self.apply_channel_button.pack(pady=5)
@@ -135,6 +118,13 @@ class OscilloscopeGUI:
 
         self.current_offset = 0
 
+    def setup_measurement(self):
+        self.velocity = Measurement(self.api.get_velocity)
+        #self.measurement_canvas = FigureCanvasTkAgg(self.velocity.fig, master=self.left_frame)  # Use left_frame for Measurement graph
+        #self.measurement_canvas.draw()
+        #self.measurement_canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+        #self.velocity.run()  # Corrected the method call
+
     def on_entry_click(self, event):
         if self.ip_entry.get() == "123.123.123.123:12345":
             self.ip_entry.delete(0, "end")
@@ -173,9 +163,9 @@ class OscilloscopeGUI:
 
         y_center = np.mean(self.ax.get_ylim())
         y_range = 1 / scale_factor
-        self.ax.set_ylim(y_center - y_range / 2, y_center + y_range / 2)
+        self.ax.set_ylim(y_center - y_range / 2, y_range / 2)
 
-        self.canvas.draw()
+        self.measurement_canvas.draw()
 
     def apply_offset(self):
         offset = self.current_offset
@@ -187,31 +177,31 @@ class OscilloscopeGUI:
     def increase_horizontal_scale(self):
         xlim = self.ax.get_xlim()
         self.ax.set_xlim([xlim[0], xlim[1] * 1.2])
-        self.canvas.draw()
+        self.measurement_canvas.draw()
 
     def decrease_horizontal_scale(self):
         xlim = self.ax.get_xlim()
         self.ax.set_xlim([xlim[0], xlim[1] * 0.8333])
-        self.canvas.draw()
+        self.measurement_canvas.draw()
 
     def increase_vertical_scale(self):
         ylim = self.ax.get_ylim()
         new_range = max(abs(ylim[0]), abs(ylim[1])) * 1.2
         self.ax.set_ylim(-new_range, new_range)
-        self.canvas.draw()
+        self.measurement_canvas.draw()
 
     def decrease_vertical_scale(self):
         ylim = self.ax.get_ylim()
         new_range = max(abs(ylim[0]), abs(ylim[1])) * 0.8333
         self.ax.set_ylim(-new_range, new_range)
-        self.canvas.draw()
+        self.measurement_canvas.draw()
 
     def update_plot(self):
         self.ax.clear()
         self.ax.plot(self.x, self.y, '#FFD700')
         self.ax.relim()
         self.ax.autoscale_view()
-        self.canvas.draw()
+        self.measurement_canvas.draw()
 
     def update_waveform(self):
         channel = self.channel_var.get()
@@ -228,7 +218,7 @@ class OscilloscopeGUI:
         self.line.set_ydata(self.y)
         self.ax.relim()
         self.ax.autoscale_view()
-        self.canvas.draw()
+        self.measurement_canvas.draw()
 
     def open_measurements(self):
         self.measurement_window = MeasurementWindow(self.master)
