@@ -2,7 +2,7 @@ import time
 from matplotlib import pyplot as plt
 from matplotlib.animation import FuncAnimation
 import matplotlib.widgets as widgets
-from project.frontend.velocity import Velocity 
+from velocity import Velocity 
 
 class Measurement:
     def __init__(self, get_method):
@@ -53,7 +53,7 @@ class Measurement:
         plt.show()
 
 def main():
-    local_ip = "192.168.94.59"
+    local_ip = "192.168.124.59"
     local_port = 4210 
     velocity = Velocity(local_ip, local_port)
     print("Created Velocity object")

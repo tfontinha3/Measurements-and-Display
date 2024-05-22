@@ -4,7 +4,9 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 import numpy as np
 from measurement_window import MeasurementWindow
-#from api_calls import OscilloscopeAPI
+import time
+import math
+from api_calls import OscilloscopeAPI
 #from Measurement import Measurement
 
 class OscilloscopeGUI:
@@ -12,23 +14,29 @@ class OscilloscopeGUI:
         self.master = master
         master.title("Oscilloscope GUI")
         OscilloscopeIP = "0.0.0.0"
-        #self.api = OscilloscopeAPI(OscilloscopeIP)
+        self.api = OscilloscopeAPI(OscilloscopeIP)
+        if self.api.get_test() == 0.0:
+            print("Connected to API")
+
+
+        self.velocity_data = []
+        self.start_time = time.time()
+        
 
         self.create_widgets()
+        self.setup_plot()
+        self.update_plot()
 
-        velocity_data = []
-        #self.setup_measurement()
 
     def create_widgets(self):
-        #hmmm
         style = ttk.Style()
         style.configure('TFrame', background='gray')
-        style.configure('TLabel', background='gray', foreground='#FFD700', font=('Helvetica', 10, 'bold'))  # Less bright yellow
+        style.configure('TLabel', background='gray', foreground='#FFD700', font=('Helvetica', 10, 'bold'))
         style.configure('TButton', background='#FFD700', foreground='black', font=('Helvetica', 10, 'bold'))
         style.configure('TEntry', fieldbackground='gray', foreground='white')
 
         self.master.configure(background='gray')
-        
+
         self.top_frame = ttk.Frame(self.master, style='TFrame')
         self.top_frame.grid(row=0, column=0, columnspan=2, sticky="nsew", padx=10, pady=10)
 
@@ -41,7 +49,40 @@ class OscilloscopeGUI:
         self.master.grid_columnconfigure(1, weight=0)
         self.master.grid_rowconfigure(1, weight=1)
 
-            # Add IP address and port entry and connect button
+        self.ip_label = ttk.Label(self.top_frame, text="Oscilloscope IP and Port:")
+        self.ip_label.pack(side="left", padx=5)
+
+        self.ip_entry = ttk.Entry(self.top_frame, width=30, foreground='gray')
+        self.ip_entry.insert(0, "123.123.123.123:12345")
+        self.ip_entry.bind("<FocusIn>", self.on_entry_click)
+        self.ip_entry.bind("<FocusOut>", self.on_focus_out)
+        self.ip_entry.pack(side="left", padx=5)
+
+        self.connect_button = ttk.Button(self.top_frame, text="Connect", command=self.connect_to_oscilloscope)
+        self.connect_button.pack(side="left", padx=5)
+
+        """
+        style = ttk.Style()
+        style.configure('TFrame', background='gray')
+        style.configure('TLabel', background='gray', foreground='#FFD700', font=('Helvetica', 10, 'bold'))  # Less bright yellow
+        style.configure('TButton', background='#FFD700', foreground='black', font=('Helvetica', 10, 'bold'))
+        style.configure('TEntry', fieldbackground='gray', foreground='white')
+
+        self.master.configure(background='gray')
+
+        self.top_frame = ttk.Frame(self.master, style='TFrame')
+        self.top_frame.grid(row=0, column=0, columnspan=2, sticky="nsew", padx=10, pady=10)
+
+        self.left_frame = ttk.Frame(self.master, style='TFrame')
+        self.right_frame = ttk.Frame(self.master, style='TFrame')
+        self.left_frame.grid(row=1, column=0, sticky="nsew")
+        self.right_frame.grid(row=1, column=1, sticky="ns")
+
+        self.master.grid_columnconfigure(0, weight=1)
+        self.master.grid_columnconfigure(1, weight=0)
+        self.master.grid_rowconfigure(1, weight=1)
+
+        # Add IP address and port entry and connect button
         self.ip_label = ttk.Label(self.top_frame, text="Oscilloscope IP and Port:")
         self.ip_label.pack(side="left", padx=5)
 
@@ -86,7 +127,7 @@ class OscilloscopeGUI:
 
         self.scale_var = tk.StringVar()
         self.scale_combobox = ttk.Combobox(self.right_frame, textvariable=self.scale_var, state="readonly",
-                                            values=("0.01X", "0.02X", "0.05X", "0.1X", "0.2X", "0.5X", "1X", "2X", "5X", "10X", "20X", "50X", "100X", "200X", "500X", "1000X"))
+                                           values=("0.01X", "0.02X", "0.05X", "0.1X", "0.2X", "0.5X", "1X", "2X", "5X", "10X", "20X", "50X", "100X", "200X", "500X", "1000X"))
         self.scale_combobox.current(6)
         self.scale_combobox.pack(pady=5)
 
@@ -118,6 +159,40 @@ class OscilloscopeGUI:
         self.set_offset_button.pack(pady=5)
 
         self.current_offset = 0
+        """
+
+    def setup_plot(self):
+        self.figure = Figure(figsize=(5, 4), dpi=100)
+        self.ax = self.figure.add_subplot(111)
+        self.ax.set_title("Real-Time Data")
+        self.ax.set_xlabel("Time (s)")
+        self.ax.set_ylabel("Velocity")
+
+        self.canvas = FigureCanvasTkAgg(self.figure, self.left_frame)
+        self.canvas.draw()
+        self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+
+        self.line, = self.ax.plot([], [], 'r-')
+
+    def update_plot(self):
+
+        elapsed_time, velocity = self.api.get_test()
+
+        self.velocity_data.append((elapsed_time, velocity))
+
+        # Keep the last 100 points
+        self.velocity_data = self.velocity_data[-100:]
+
+        times, values = zip(*self.velocity_data) if self.velocity_data else ([], [])
+
+        self.line.set_data(times, values)
+
+        self.ax.set_xlim(max(0, elapsed_time - 10), elapsed_time)
+        self.ax.set_ylim(-1.5, 1.5)
+
+        self.canvas.draw()
+
+        self.master.after(100, self.update_plot)
 
     def on_entry_click(self, event):
         if self.ip_entry.get() == "123.123.123.123:12345":
@@ -190,12 +265,6 @@ class OscilloscopeGUI:
         self.ax.set_ylim(-new_range, new_range)
         self.measurement_canvas.draw()
 
-    def update_plot(self):
-        self.ax.clear()
-        self.ax.plot(self.x, self.y, '#FFD700')
-        self.ax.relim()
-        self.ax.autoscale_view()
-        self.measurement_canvas.draw()
 
     def update_waveform(self):
         channel = self.channel_var.get()

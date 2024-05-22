@@ -7,7 +7,7 @@ const char* password = "sardinhas";
 
 WiFiUDP udp;
 const int localUdpPort = 4210; // Local port to listen on
-const char *remoteIp = " 192.168.94.233"; // IP address of the receiving host
+const char *remoteIp = " 10.227.158.39"; // IP address of the receiving host
 const int remotePort = 4210; // Port of the receiving host
 
 float velocity = 0.0;
