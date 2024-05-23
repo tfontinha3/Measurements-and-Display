@@ -9,10 +9,10 @@ class Velocity:
     def get_data(self):
         try:
             data, addr = self.sock.recvfrom(1024)  
-            print("Received message from:", addr)
-            print("Received message:", data.decode())
+            #print("Received message from:", addr)
+            #print("Received message:", data.decode())
             data_pairs = [pair.split(',') for pair in data.decode().split(';') if pair]
-            return data_pairs
+            return [(float(time), float(value)) for time, value in data_pairs]
         except socket.timeout:
             print("Timeout: No data received.")
         except UnicodeDecodeError:

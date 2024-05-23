@@ -11,7 +11,7 @@ class OscilloscopeAPI:
         self.voltage_channel = 1
         self.current_channel = 2
 
-        local_ip = "192.168.94.59"
+        local_ip = "192.168.205.59"
         local_port = 4210 
 
         self.speedSesnsor = Velocity("local_ip", "local_port")
@@ -54,6 +54,7 @@ class OscilloscopeAPI:
 
     def get_velocity(self):
         data = self.speedSesnsor.get_data()
+        
         return data
 
     def get_voltage(self):
@@ -67,12 +68,14 @@ class OscilloscopeAPI:
         elapsed_time = time.time() - self.start_time
         # Calculate the sine value
         sine_value = math.sin(elapsed_time)
-        return (elapsed_time, sine_value)
+        array = []
+        array.append((elapsed_time, sine_value))
+        return array
     
     #get_esp_values
     
 if __name__ == "__main__":
     oscilloscope = OscilloscopeAPI("0.0.0.0")
     while True:
-        print(oscilloscope.get_velocity())
+        print(oscilloscope.get_test())
         time.sleep(0.5)

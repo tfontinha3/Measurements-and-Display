@@ -1,63 +1,54 @@
-#include <WiFi.h>
-#include <WiFiUdp.h>
-#include <math.h>
+// Define the pins connected to the IR sensor
+const int analogPin = 36; // GPIO36 (VP)
+const int digitalPin = 27; // GPIO27
 
-const char* ssid = "xizesse";
-const char* password = "sardinhas";
+// Variables to store pulse count and time
+volatile int pulseCount = 0;
+unsigned long previousMillis = 0;
+const unsigned long interval = 1000; // 0.01 second interval for RPM calculation
 
-WiFiUDP udp;
-const int localUdpPort = 4210; // Local port to listen on
-const char *remoteIp = " 10.227.158.39"; // IP address of the receiving host
-const int remotePort = 4210; // Port of the receiving host
+// Array to store RPM values and timestamps
+const int maxMeasurements = 100; // Adjust size as needed
+struct Measurement {
+  unsigned long time;
+  int rpm;
+};
+Measurement measurements[maxMeasurements];
+int measurementIndex = 0;
 
-float velocity = 0.0;
-const int bufferSize = 10;
-float velocityBuffer[bufferSize];
-unsigned long timeBuffer[bufferSize];
-int bufferIndex = 0;
+void IRAM_ATTR countPulse() {
+  pulseCount++;
+}
 
 void setup() {
-    Serial.begin(115200);
-    Serial.println("Setuping");
-    WiFi.begin(ssid, password);
-    Serial.println("Connecting to WiFi");
-    while (WiFi.status() != WL_CONNECTED) {
-        delay(500);
-        Serial.print(".");
-    }
+  // Initialize the serial communication
+  Serial.begin(115200);
 
-    Serial.println("\nWiFi connected.");
-    Serial.print("IP Address: ");
-    Serial.println(WiFi.localIP());
-
-    udp.begin(localUdpPort);
-    Serial.println("UDP server started");
+  // Set the digital pin as input and attach interrupt
+  pinMode(digitalPin, INPUT);
+  attachInterrupt(digitalPin, countPulse, RISING);
 }
 
 void loop() {
-    velocity = 100 * sin(2 * PI / 5000 * millis());
-    velocityBuffer[bufferIndex] = velocity;
-    timeBuffer[bufferIndex] = millis(); 
-    bufferIndex = (bufferIndex + 1) % bufferSize;
+  // Read the analog value from the sensor
+  int analogValue = analogRead(analogPin);
 
-    sendVelocityData();
+  // Get current time
+  unsigned long currentMillis = millis();
 
-    delay(100);
-}
+  // Calculate RPM every interval
+  if (currentMillis - previousMillis >= interval) {
+    previousMillis = currentMillis;
 
-void sendVelocityData() {
-    char packetBuffer[255]; // Adjust size as needed
-    String data = "";
+    // Calculate RPM (since 20 pulses = 1 rotation)
+    int rpm = (pulseCount * 6000 / 20); // Convert pulses per 0.01 second to RPM
+    pulseCount = 0; // Reset pulse count for the next interval
 
-    for (int i = 0; i < bufferSize; i++) {
-        data += String(timeBuffer[i]) + "," + String(velocityBuffer[i]) + ";";
+    // Save RPM and timestamp in the array
+    if (measurementIndex < maxMeasurements) {
+      measurements[measurementIndex].time = currentMillis;
+      measurements[measurementIndex].rpm = rpm;
+      measurementIndex++;
     }
-
-    data.toCharArray(packetBuffer, data.length() + 1);
-    udp.beginPacket(remoteIp, remotePort);
-    udp.write((uint8_t *)packetBuffer, data.length());
-    udp.endPacket();
+  }
 }
-
-
-

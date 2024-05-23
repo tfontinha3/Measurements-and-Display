@@ -175,24 +175,38 @@ class OscilloscopeGUI:
         self.line, = self.ax.plot([], [], 'r-')
 
     def update_plot(self):
+        get_values = self.api.get_velocity()
+        print(get_values)
+        
+        # Append new values to the velocity_data list
+        self.velocity_data.extend(get_values)
 
-        elapsed_time, velocity = self.api.get_test()
+        # Remove duplicate points based on the same timestamp
+        unique_data = {time: value for time, value in self.velocity_data}
 
-        self.velocity_data.append((elapsed_time, velocity))
+        # Convert back to a list of tuples
+        self.velocity_data = list(unique_data.items())
+
+        # Sort by time to maintain the correct order
+        self.velocity_data.sort()
 
         # Keep the last 100 points
         self.velocity_data = self.velocity_data[-100:]
 
-        times, values = zip(*self.velocity_data) if self.velocity_data else ([], [])
+        if self.velocity_data:
+            times = [point[0] for point in self.velocity_data]
+            values = [point[1] for point in self.velocity_data]
 
-        self.line.set_data(times, values)
+            self.line.set_data(times, values)
 
-        self.ax.set_xlim(max(0, elapsed_time - 10), elapsed_time)
-        self.ax.set_ylim(-1.5, 1.5)
+            self.ax.set_xlim(min(times), max(times) if max(times) - min(times) > 30 else (min(times) + 30))
+            self.ax.set_ylim(min(values) - 1, max(values) + 1)
 
-        self.canvas.draw()
+            self.canvas.draw()
 
         self.master.after(100, self.update_plot)
+
+
 
     def on_entry_click(self, event):
         if self.ip_entry.get() == "123.123.123.123:12345":
