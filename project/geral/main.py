@@ -7,7 +7,6 @@ from measurement_window import MeasurementWindow
 import time
 import math
 from api_calls import OscilloscopeAPI
-#from Measurement import Measurement
 
 class OscilloscopeGUI:
     def __init__(self, master):
@@ -18,15 +17,16 @@ class OscilloscopeGUI:
         if self.api.get_test() == 0.0:
             print("Connected to API")
 
-
         self.velocity_data = []
+        self.voltage_data = []
+        self.current_data = []
         self.start_time = time.time()
         
-
         self.create_widgets()
-        self.setup_plot()
-        self.update_plot()
-
+        self.setup_plots()
+        self.update_velocity_plot()
+        self.update_voltage_plot()
+        self.update_current_plot()
 
     def create_widgets(self):
         style = ttk.Style()
@@ -61,120 +61,44 @@ class OscilloscopeGUI:
         self.connect_button = ttk.Button(self.top_frame, text="Connect", command=self.connect_to_oscilloscope)
         self.connect_button.pack(side="left", padx=5)
 
-        """
-        style = ttk.Style()
-        style.configure('TFrame', background='gray')
-        style.configure('TLabel', background='gray', foreground='#FFD700', font=('Helvetica', 10, 'bold'))  # Less bright yellow
-        style.configure('TButton', background='#FFD700', foreground='black', font=('Helvetica', 10, 'bold'))
-        style.configure('TEntry', fieldbackground='gray', foreground='white')
+    def setup_plots(self):
+        self.figure_velocity = Figure(figsize=(5, 2), dpi=100)
+        self.ax_velocity = self.figure_velocity.add_subplot(111)
+        self.ax_velocity.set_title("Real-Time Velocity Data")
+        self.ax_velocity.set_xlabel("Time (s)")
+        self.ax_velocity.set_ylabel("Velocity")
 
-        self.master.configure(background='gray')
+        self.canvas_velocity = FigureCanvasTkAgg(self.figure_velocity, self.left_frame)
+        self.canvas_velocity.draw()
+        self.canvas_velocity.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
-        self.top_frame = ttk.Frame(self.master, style='TFrame')
-        self.top_frame.grid(row=0, column=0, columnspan=2, sticky="nsew", padx=10, pady=10)
+        self.line_velocity, = self.ax_velocity.plot([], [], 'r-')
 
-        self.left_frame = ttk.Frame(self.master, style='TFrame')
-        self.right_frame = ttk.Frame(self.master, style='TFrame')
-        self.left_frame.grid(row=1, column=0, sticky="nsew")
-        self.right_frame.grid(row=1, column=1, sticky="ns")
+        self.figure_voltage = Figure(figsize=(5, 2), dpi=100)
+        self.ax_voltage = self.figure_voltage.add_subplot(111)
+        self.ax_voltage.set_title("Real-Time Voltage Data")
+        self.ax_voltage.set_xlabel("Time (s)")
+        self.ax_voltage.set_ylabel("Voltage")
 
-        self.master.grid_columnconfigure(0, weight=1)
-        self.master.grid_columnconfigure(1, weight=0)
-        self.master.grid_rowconfigure(1, weight=1)
+        self.canvas_voltage = FigureCanvasTkAgg(self.figure_voltage, self.left_frame)
+        self.canvas_voltage.draw()
+        self.canvas_voltage.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
-        # Add IP address and port entry and connect button
-        self.ip_label = ttk.Label(self.top_frame, text="Oscilloscope IP and Port:")
-        self.ip_label.pack(side="left", padx=5)
+        self.line_voltage, = self.ax_voltage.plot([], [], 'b-')
 
-        self.ip_entry = ttk.Entry(self.top_frame, width=30, foreground='gray')
-        self.ip_entry.insert(0, "123.123.123.123:12345")
-        self.ip_entry.bind("<FocusIn>", self.on_entry_click)
-        self.ip_entry.bind("<FocusOut>", self.on_focus_out)
-        self.ip_entry.pack(side="left", padx=5)
+        self.figure_current = Figure(figsize=(5, 2), dpi=100)
+        self.ax_current = self.figure_current.add_subplot(111)
+        self.ax_current.set_title("Real-Time Current Data")
+        self.ax_current.set_xlabel("Time (s)")
+        self.ax_current.set_ylabel("Current")
 
-        self.connect_button = ttk.Button(self.top_frame, text="Connect", command=self.connect_to_oscilloscope)
-        self.connect_button.pack(side="left", padx=5)
+        self.canvas_current = FigureCanvasTkAgg(self.figure_current, self.left_frame)
+        self.canvas_current.draw()
+        self.canvas_current.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
-        self.request_waveform_button = ttk.Button(self.top_frame, text="Request Waveform", command=self.request_waveform)
-        self.request_waveform_button.pack(side="left", padx=5)
+        self.line_current, = self.ax_current.plot([], [], 'g-')
 
-        self.apply_channel_button = ttk.Button(self.right_frame, text="Apply Channel", command=self.update_waveform)
-        self.apply_channel_button.pack(pady=5)
-
-        self.channel_label = ttk.Label(self.right_frame, text="Channel Selection")
-        self.channel_label.pack(pady=5)
-
-        self.channel_var = tk.StringVar()
-        self.channel_combobox = ttk.Combobox(self.right_frame, textvariable=self.channel_var, state="readonly")
-        self.channel_combobox['values'] = ("Channel 1", "Channel 2", "Channel 3")
-        self.channel_combobox.current(0)
-        self.channel_combobox.pack(pady=5)
-
-        self.start_label = ttk.Label(self.right_frame, text="Start Measuring")
-        self.start_label.pack(pady=5)
-
-        self.start_button = ttk.Button(self.right_frame, text="Start / Stop", command=self.connect_to_oscilloscope)
-        self.start_button.pack(pady=5)
-
-        self.measure_label = ttk.Label(self.right_frame, text="Display Measurements")
-        self.measure_label.pack(pady=5)
-
-        self.measure_button = ttk.Button(self.right_frame, text="Measure", command=self.open_measurements)
-        self.measure_button.pack(pady=5)
-
-        self.scale_label = ttk.Label(self.right_frame, text="Scale Selection")
-        self.scale_label.pack(pady=5)
-
-        self.scale_var = tk.StringVar()
-        self.scale_combobox = ttk.Combobox(self.right_frame, textvariable=self.scale_var, state="readonly",
-                                           values=("0.01X", "0.02X", "0.05X", "0.1X", "0.2X", "0.5X", "1X", "2X", "5X", "10X", "20X", "50X", "100X", "200X", "500X", "1000X"))
-        self.scale_combobox.current(6)
-        self.scale_combobox.pack(pady=5)
-
-        self.apply_scale_button = ttk.Button(self.right_frame, text="Apply Scale", command=self.apply_scale)
-        self.apply_scale_button.pack(pady=5)
-
-        self.horizontal_scale_label = ttk.Label(self.right_frame, text="Horizontal Scale")
-        self.horizontal_scale_label.pack(pady=5)
-
-        self.horizontal_plus_button = ttk.Button(self.right_frame, text="Horizontal+", command=self.increase_horizontal_scale)
-        self.horizontal_plus_button.pack(pady=5)
-
-        self.horizontal_minus_button = ttk.Button(self.right_frame, text="Horizontal-", command=self.decrease_horizontal_scale)
-        self.horizontal_minus_button.pack(pady=5)
-
-        self.vertical_scale_label = ttk.Label(self.right_frame, text="Vertical Scale")
-        self.vertical_scale_label.pack(pady=5)
-
-        self.vertical_plus_button = ttk.Button(self.right_frame, text="Vertical+", command=self.increase_vertical_scale)
-        self.vertical_plus_button.pack(pady=5)
-
-        self.vertical_minus_button = ttk.Button(self.right_frame, text="Vertical-", command=self.decrease_vertical_scale)
-        self.vertical_minus_button.pack(pady=5)
-
-        self.auto_scale_label = ttk.Label(self.right_frame, text="Automatic Scale")
-        self.auto_scale_label.pack(pady=5)
-
-        self.set_offset_button = ttk.Button(self.right_frame, text="Auto Scale", command=self.apply_offset)
-        self.set_offset_button.pack(pady=5)
-
-        self.current_offset = 0
-        """
-
-    def setup_plot(self):
-        self.figure = Figure(figsize=(5, 4), dpi=100)
-        self.ax = self.figure.add_subplot(111)
-        self.ax.set_title("Real-Time Data")
-        self.ax.set_xlabel("Time (s)")
-        self.ax.set_ylabel("Velocity")
-
-        self.canvas = FigureCanvasTkAgg(self.figure, self.left_frame)
-        self.canvas.draw()
-        self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
-
-        self.line, = self.ax.plot([], [], 'r-')
-
-    def update_plot(self):
+    def update_velocity_plot(self):
         get_values = self.api.get_velocity()
         print(get_values)
         
@@ -197,20 +121,84 @@ class OscilloscopeGUI:
             times = [point[0] for point in self.velocity_data]
             values = [point[1] for point in self.velocity_data]
 
-            self.line.set_data(times, values)
+            self.line_velocity.set_data(times, values)
 
-            self.ax.set_xlim(min(times), max(times) if max(times) - min(times) > 30 else (min(times) + 30))
-            self.ax.set_ylim(min(values) - 1, max(values) + 1)
+            self.ax_velocity.set_xlim(min(times), max(times) if max(times) - min(times) > 30 else (min(times) + 30))
+            self.ax_velocity.set_ylim(min(values) - 1, max(values) + 1)
 
-            self.canvas.draw()
+            self.canvas_velocity.draw()
 
-        self.master.after(100, self.update_plot)
+        self.master.after(100, self.update_velocity_plot)
+
+    def update_voltage_plot(self):
+        get_values = self.api.get_test()
+        print(get_values)
+        
+        # Append new values to the voltage_data list
+        self.voltage_data.extend(get_values)
+
+        # Remove duplicate points based on the same timestamp
+        unique_data = {time: value for time, value in self.voltage_data}
+
+        # Convert back to a list of tuples
+        self.voltage_data = list(unique_data.items())
+
+        # Sort by time to maintain the correct order
+        self.voltage_data.sort()
+
+        # Keep the last 100 points
+        self.voltage_data = self.voltage_data[-100:]
+
+        if self.voltage_data:
+            times = [point[0] for point in self.voltage_data]
+            values = [point[1] for point in self.voltage_data]
+
+            self.line_voltage.set_data(times, values)
+
+            self.ax_voltage.set_xlim(min(times), max(times) if max(times) - min(times) > 30 else (min(times) + 30))
+            self.ax_voltage.set_ylim(min(values) - 1, max(values) + 1)
+
+            self.canvas_voltage.draw()
+
+        self.master.after(100, self.update_voltage_plot)
+
+    def update_current_plot(self):
+        get_values = self.api.get_test()
+        print(get_values)
+        
+        # Append new values to the current_data list
+        self.current_data.extend(get_values)
+
+        # Remove duplicate points based on the same timestamp
+        unique_data = {time: value for time, value in self.current_data}
+
+        # Convert back to a list of tuples
+        self.current_data = list(unique_data.items())
+
+        # Sort by time to maintain the correct order
+        self.current_data.sort()
+
+        # Keep the last 100 points
+        self.current_data = self.current_data[-100:]
+
+        if self.current_data:
+            times = [point[0] for point in self.current_data]
+            values = [point[1] for point in self.current_data]
+
+            self.line_current.set_data(times, values)
+
+            self.ax_current.set_xlim(min(times), max(times) if max(times) - min(times) > 30 else (min(times) + 30))
+            self.ax_current.set_ylim(min(values) - 1, max(values) + 1)
+
+            self.canvas_current.draw()
+
+        self.master.after(100, self.update_current_plot)
 
 
 
     def on_entry_click(self, event):
         if self.ip_entry.get() == "123.123.123.123:12345":
-            self.ip_entry.delete(0, "end")
+            self.ip_entry.delete(0, "end")  
             self.ip_entry.insert(0, "")
             self.ip_entry.config(foreground='white')
 
