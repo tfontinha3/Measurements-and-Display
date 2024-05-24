@@ -4,28 +4,22 @@ import math
 import time
 from velocity import Velocity
 
-
-
-class OscilloscopeAPI:
+class API:
     def __init__(self, ip):
         self.voltage_channel = 1
         self.current_channel = 2
 
-        local_ip = "192.168.205.59"
-        local_port = 4210 
-
-        self.speedSesnsor = Velocity("local_ip", "local_port")
+        self.speedSensor = Velocity()
 
         self.time = 0
         self.oscilloscope = Oscilloscope.Oscilloscope(ip)
         self.start_time = time.time()
+        self.connected = False
 
-
-
-
-    def connect_to_oscilloscope(self):
+    def connect(self):
         try:
             self.oscilloscope.connect()
+            self.connected = True
             return self.oscilloscope.idn
         except Exception as ex:
             print("Error connecting to Oscilloscope")
@@ -53,15 +47,26 @@ class OscilloscopeAPI:
 
 
     def get_velocity(self):
-        data = self.speedSesnsor.get_data()
+        data = self.speedSensor.get_data()
         
         return data
 
     def get_voltage(self):
         response = self.get_vrms(self.voltage_channel)
         #hmm pass from jsom to array
-        return response
-
+        elapsed_time = time.time() - self.start_time
+        measurements = []
+        measurements.append((elapsed_time, response))
+        return measurements
+    
+    def get_current(self):
+        response = self.get_vrms(self.current_channel)
+        #hmm pass from jsom to array
+        measurements = []
+        if response:
+            elapsed_time = time.time() - self.start_time
+            measurements.append((elapsed_time, response))
+        return measurements
 
     def get_test(self):
         # Get the elapsed time since the start
@@ -75,7 +80,7 @@ class OscilloscopeAPI:
     #get_esp_values
     
 if __name__ == "__main__":
-    oscilloscope = OscilloscopeAPI("0.0.0.0")
+    oscilloscope = API("0.0.0.0")
     while True:
-        print(oscilloscope.get_test())
+        print(oscilloscope.get_velocity())
         time.sleep(0.5)

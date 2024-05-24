@@ -6,17 +6,13 @@ import numpy as np
 from measurement_window import MeasurementWindow
 import time
 import math
-from api_calls import OscilloscopeAPI
+from api_calls import API
 
 class OscilloscopeGUI:
     def __init__(self, master):
         self.master = master
-        master.title("Oscilloscope GUI")
-        OscilloscopeIP = "0.0.0.0"
-        self.api = OscilloscopeAPI(OscilloscopeIP)
-        if self.api.get_test() == 0.0:
-            print("Connected to API")
-
+        master.title("Oscilloscope GUI")      
+        
         self.velocity_data = []
         self.voltage_data = []
         self.current_data = []
@@ -24,9 +20,9 @@ class OscilloscopeGUI:
         
         self.create_widgets()
         self.setup_plots()
-        self.update_velocity_plot()
-        self.update_voltage_plot()
-        self.update_current_plot()
+        self.draw_flag = False
+        #self.update_velocity_plot()
+
 
     def create_widgets(self):
         style = ttk.Style()
@@ -52,14 +48,17 @@ class OscilloscopeGUI:
         self.ip_label = ttk.Label(self.top_frame, text="Oscilloscope IP and Port:")
         self.ip_label.pack(side="left", padx=5)
 
-        self.ip_entry = ttk.Entry(self.top_frame, width=30, foreground='gray')
-        self.ip_entry.insert(0, "123.123.123.123:12345")
+        self.ip_entry = ttk.Entry(self.top_frame, width=30, foreground='black')
+        self.ip_entry.insert(0, "192.168.1.10")
         self.ip_entry.bind("<FocusIn>", self.on_entry_click)
         self.ip_entry.bind("<FocusOut>", self.on_focus_out)
         self.ip_entry.pack(side="left", padx=5)
 
         self.connect_button = ttk.Button(self.top_frame, text="Connect", command=self.connect_to_oscilloscope)
         self.connect_button.pack(side="left", padx=5)
+
+        self.status_label = ttk.Label(self.top_frame, text="", foreground="")
+        self.status_label.pack(side="left", padx=5)
 
     def setup_plots(self):
         self.figure_velocity = Figure(figsize=(5, 2), dpi=100)
@@ -99,102 +98,105 @@ class OscilloscopeGUI:
         self.line_current, = self.ax_current.plot([], [], 'g-')
 
     def update_velocity_plot(self):
-        get_values = self.api.get_velocity()
-        print(get_values)
-        
-        # Append new values to the velocity_data list
-        self.velocity_data.extend(get_values)
+        if self.draw_flag:
+            get_values = self.api.get_velocity()
+            print("ESP", get_values)
+            
+            # Append new values to the velocity_data list
+            self.velocity_data.extend(get_values)
 
-        # Remove duplicate points based on the same timestamp
-        unique_data = {time: value for time, value in self.velocity_data}
+            # Remove duplicate points based on the same timestamp
+            unique_data = {time: value for time, value in self.velocity_data}
 
-        # Convert back to a list of tuples
-        self.velocity_data = list(unique_data.items())
+            # Convert back to a list of tuples
+            self.velocity_data = list(unique_data.items())
 
-        # Sort by time to maintain the correct order
-        self.velocity_data.sort()
+            # Sort by time to maintain the correct order
+            self.velocity_data.sort()
 
-        # Keep the last 100 points
-        self.velocity_data = self.velocity_data[-100:]
+            # Keep the last 100 points
+            self.velocity_data = self.velocity_data[-100:]
 
-        if self.velocity_data:
-            times = [point[0] for point in self.velocity_data]
-            values = [point[1] for point in self.velocity_data]
+            if self.velocity_data:
+                times = [point[0] for point in self.velocity_data]
+                values = [point[1] for point in self.velocity_data]
 
-            self.line_velocity.set_data(times, values)
+                self.line_velocity.set_data(times, values)
 
-            self.ax_velocity.set_xlim(min(times), max(times) if max(times) - min(times) > 30 else (min(times) + 30))
-            self.ax_velocity.set_ylim(min(values) - 1, max(values) + 1)
+                self.ax_velocity.set_xlim(min(times), max(times) if max(times) - min(times) > 30 else (min(times) + 30))
+                self.ax_velocity.set_ylim(min(values) - 1, max(values) + 1)
 
-            self.canvas_velocity.draw()
+                self.canvas_velocity.draw()
 
-        self.master.after(100, self.update_velocity_plot)
+            self.master.after(100, self.update_velocity_plot)
 
     def update_voltage_plot(self):
-        get_values = self.api.get_test()
-        print(get_values)
-        
-        # Append new values to the voltage_data list
-        self.voltage_data.extend(get_values)
+        if self.draw_flag:
+            get_values = self.api.get_voltage()
+            print(get_values)
+            
+            # Append new values to the voltage_data list
+            self.voltage_data.extend(get_values)
 
-        # Remove duplicate points based on the same timestamp
-        unique_data = {time: value for time, value in self.voltage_data}
+            # Remove duplicate points based on the same timestamp
+            unique_data = {time: value for time, value in self.voltage_data}
 
-        # Convert back to a list of tuples
-        self.voltage_data = list(unique_data.items())
+            # Convert back to a list of tuples
+            self.voltage_data = list(unique_data.items())
 
-        # Sort by time to maintain the correct order
-        self.voltage_data.sort()
+            # Sort by time to maintain the correct order
+            self.voltage_data.sort()
 
-        # Keep the last 100 points
-        self.voltage_data = self.voltage_data[-100:]
+            # Keep the last 100 points
+            self.voltage_data = self.voltage_data[-100:]
 
-        if self.voltage_data:
-            times = [point[0] for point in self.voltage_data]
-            values = [point[1] for point in self.voltage_data]
+            if self.voltage_data:
+                times = [point[0] for point in self.voltage_data]
+                values = [point[1] for point in self.voltage_data]
 
-            self.line_voltage.set_data(times, values)
+                self.line_voltage.set_data(times, values)
 
-            self.ax_voltage.set_xlim(min(times), max(times) if max(times) - min(times) > 30 else (min(times) + 30))
-            self.ax_voltage.set_ylim(min(values) - 1, max(values) + 1)
+                self.ax_voltage.set_xlim(min(times), max(times) if max(times) - min(times) > 30 else (min(times) + 30))
+                self.ax_voltage.set_ylim(min(values) - 1, max(values) + 1)
 
-            self.canvas_voltage.draw()
 
-        self.master.after(100, self.update_voltage_plot)
+                self.canvas_voltage.draw()
+
+            self.master.after(30, self.update_voltage_plot)
 
     def update_current_plot(self):
-        get_values = self.api.get_test()
-        print(get_values)
-        
-        # Append new values to the current_data list
-        self.current_data.extend(get_values)
+        if self.draw_flag:
+            get_values = self.api.get_current()
+            print(get_values)
+            
+            # Append new values to the current_data list
+            self.current_data.extend(get_values)
 
-        # Remove duplicate points based on the same timestamp
-        unique_data = {time: value for time, value in self.current_data}
+            # Remove duplicate points based on the same timestamp
+            unique_data = {time: value for time, value in self.current_data}
 
-        # Convert back to a list of tuples
-        self.current_data = list(unique_data.items())
+            # Convert back to a list of tuples
+            self.current_data = list(unique_data.items())
 
-        # Sort by time to maintain the correct order
-        self.current_data.sort()
+            # Sort by time to maintain the correct order
+            self.current_data.sort()
 
-        # Keep the last 100 points
-        self.current_data = self.current_data[-100:]
+            # Keep the last 100 points
+            self.current_data = self.current_data[-100:]
 
-        if self.current_data:
-            times = [point[0] for point in self.current_data]
-            values = [point[1] for point in self.current_data]
+            if self.current_data:
+                times = [point[0] for point in self.current_data]
+                values = [point[1] for point in self.current_data]
 
-            self.line_current.set_data(times, values)
+                self.line_current.set_data(times, values)
 
-            self.ax_current.set_xlim(min(times), max(times) if max(times) - min(times) > 30 else (min(times) + 30))
-            self.ax_current.set_ylim(min(values) - 1, max(values) + 1)
-
-            self.canvas_current.draw()
-
-        self.master.after(100, self.update_current_plot)
+                self.ax_current.set_xlim(min(times), max(times) if max(times) - min(times) > 30 else (min(times) + 30))
+                self.ax_current.set_ylim(min(values) - 1, max(values) + 1)
 
 
+                self.canvas_current.draw()
+
+            self.master.after(30, self.update_current_plot)
 
     def on_entry_click(self, event):
         if self.ip_entry.get() == "123.123.123.123:12345":
@@ -208,11 +210,26 @@ class OscilloscopeGUI:
             self.ip_entry.config(foreground='gray')
 
     def connect_to_oscilloscope(self):
-        ip_address = self.ip_entry.get()
-        self.api.set_base_url(ip_address)
-        data = self.api.connect_to_oscilloscope()
-        print(data)
-
+        if self.connect_button["text"] == "Connect":
+            ip_address = self.ip_entry.get()
+            self.api = API(ip_address)
+            data = self.api.connect()
+            if self.api.connected:
+                self.connect_button["text"] = "Disconnect"
+                self.status_label["text"] = "Connected to " + data
+                self.draw_flag = True
+                self.update_voltage_plot()
+                self.update_current_plot()
+                self.update_velocity_plot()
+            else:
+                self.draw_flag = False
+                self.connect_button["text"] = "Connect"
+                self.status_label["text"] = "Unable to connect to the oscilloscope."
+        else:
+            self.draw_flag = False
+            self.connect_button["text"] = "Connect"
+            self.status_label["text"] = ""
+            
     def request_waveform(self):
         data = self.api.get_waveform()
         if data:
@@ -267,7 +284,6 @@ class OscilloscopeGUI:
         self.ax.set_ylim(-new_range, new_range)
         self.measurement_canvas.draw()
 
-
     def update_waveform(self):
         channel = self.channel_var.get()
         if channel == "Channel 1":
@@ -288,13 +304,8 @@ class OscilloscopeGUI:
     def open_measurements(self):
         self.measurement_window = MeasurementWindow(self.master)
 
-
 if __name__ == "__main__":
     root = tk.Tk()
-    root.geometry('1000x700')
+    root.geometry('1300x700')
     gui = OscilloscopeGUI(root)
     root.mainloop()
-
-"""
-    
-"""

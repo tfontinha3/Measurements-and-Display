@@ -1,0 +1,5 @@
+    def update_plots(self, delay: int):
+        self.update_voltage_plot()
+        self.update_current_plot()
+        self.update_velocity_plot()
+        self.master.after(delay, self.update_voltage_plot)

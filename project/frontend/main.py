@@ -4,15 +4,13 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 import numpy as np
 from measurement_window import MeasurementWindow
-#from api_calls import OscilloscopeAPI
+from api_calls import OscilloscopeAPI
 #from Measurement import Measurement
 
 class OscilloscopeGUI:
     def __init__(self, master):
         self.master = master
         master.title("Oscilloscope GUI")
-        OscilloscopeIP = "0.0.0.0"
-        #self.api = OscilloscopeAPI(OscilloscopeIP)
 
         self.create_widgets()
 
@@ -41,12 +39,12 @@ class OscilloscopeGUI:
         self.master.grid_columnconfigure(1, weight=0)
         self.master.grid_rowconfigure(1, weight=1)
 
-            # Add IP address and port entry and connect button
+        # Add IP address and port entry and connect button
         self.ip_label = ttk.Label(self.top_frame, text="Oscilloscope IP and Port:")
         self.ip_label.pack(side="left", padx=5)
 
-        self.ip_entry = ttk.Entry(self.top_frame, width=30, foreground='gray')
-        self.ip_entry.insert(0, "123.123.123.123:12345")
+        self.ip_entry = ttk.Entry(self.top_frame, width=30, foreground='black')
+        self.ip_entry.insert(0, "192.168.1.10")
         self.ip_entry.bind("<FocusIn>", self.on_entry_click)
         self.ip_entry.bind("<FocusOut>", self.on_focus_out)
         self.ip_entry.pack(side="left", padx=5)
@@ -72,7 +70,7 @@ class OscilloscopeGUI:
         self.start_label = ttk.Label(self.right_frame, text="Start Measuring")
         self.start_label.pack(pady=5)
 
-        self.start_button = ttk.Button(self.right_frame, text="Start / Stop", command=self.connect_to_oscilloscope)
+        self.start_button = ttk.Button(self.right_frame, text="Start / Stop", command=None)
         self.start_button.pack(pady=5)
 
         self.measure_label = ttk.Label(self.right_frame, text="Display Measurements")
@@ -131,10 +129,15 @@ class OscilloscopeGUI:
             self.ip_entry.config(foreground='gray')
 
     def connect_to_oscilloscope(self):
-        ip_address = self.ip_entry.get()
-        self.api.set_base_url(ip_address)
-        data = self.api.connect_to_oscilloscope()
-        print(data)
+        if self.connect_button["text"] == "Connect":
+            ip_address = self.ip_entry.get()
+            self.api = OscilloscopeAPI(ip_address)
+            data = self.api.connect()
+            if self.api.connected:
+                #self.connect_button.config(state=DISABLED)
+                self.connect_button["text"] = "Disconnect"
+        else:
+            self.connect_button["text"] = "Connect"
 
     def request_waveform(self):
         data = self.api.get_waveform()

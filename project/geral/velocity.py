@@ -1,10 +1,10 @@
 import socket
 
 class Velocity:
-    def __init__(self, local_ip, local_port):
+    def __init__(self):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) 
         self.sock.bind(("0.0.0.0", 4210))
-        self.sock.settimeout(5.0)  # Set timeout for blocking socket operations
+        self.sock.settimeout(1.0)  # Set timeout for blocking socket operations
 
     def get_data(self):
         try:

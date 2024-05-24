@@ -1,4 +1,7 @@
 #from lib.Response import Response
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from lib.Response import Response
 
 from .instruments import DS1000Z
